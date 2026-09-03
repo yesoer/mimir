@@ -4,4 +4,5 @@ add_mim_plugin(mem
         normalizers.cpp
         phase/add_mem.cpp
         phase/seo.cpp
+        phase/mem_linearity.cpp
 )

@@ -104,3 +104,9 @@ axm seo: compile.Phase;
 /// Rewrites `mem.alloc` / `mem.slot` into `mem.malloc` / `mem.mslot`.
 ///
 axm alloc2malloc_repl: compile.Phase;
+///
+/// ### mem_linearity
+///
+/// Verify linearity (in usage) of mem objects
+///
+axm mem_linearity: compile.Phase;
