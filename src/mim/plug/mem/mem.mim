@@ -95,8 +95,10 @@ axm %mem.lea: {n: Nat, Ts: «n; *», a: Nat} → [%mem.Ptr («j: n; Ts#j», a), 
 /// * `seo`: Symbolic Expression Optimization - SSA construction, expression propagation, and GVN in one fixed point (see mim::plug::mem::phase::SEO).
 /// * `remem_repl`: removes `%%mem.remem`s.
 /// * `alloc2malloc_repl`: rewrites `%%mem.alloc` / `%%mem.slot` into `%%mem.malloc` / `%%mem.mslot`.
+/// * `mem_linearity`: verify linearity (in usage) of mem objects
 ///
 axm %mem.add_mem:           %compile.Phase;
 axm %mem.seo:               %compile.Phase;
 axm %mem.remem_repl:        %compile.Phase;
 axm %mem.alloc2malloc_repl: %compile.Phase;
+axm %mem.mem_linearity:     %compile.Phase;

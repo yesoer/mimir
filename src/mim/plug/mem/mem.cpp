@@ -5,6 +5,7 @@
 
 #include "mim/plug/mem/mem.h"
 #include "mim/plug/mem/phase/add_mem.h"
+#include "mim/plug/mem/phase/mem_linearity.h"
 #include "mim/plug/mem/phase/seo.h"
 
 using namespace mim;
@@ -31,8 +32,9 @@ void reg_phases(Flags2Phases& phases) {
     });
 
     // clang-format off
-    Phase::hook<mem::add_mem, mem::phase::AddMem>(phases);
-    Phase::hook<mem::seo,     mem::phase::SEO   >(phases);
+    Phase::hook<mem::add_mem,       mem::phase::AddMem      >(phases);
+    Phase::hook<mem::seo,           mem::phase::SEO         >(phases);
+    Phase::hook<mem::mem_linearity, mem::phase::MemLinearity>(phases);
     // clang-format on
 }
 
