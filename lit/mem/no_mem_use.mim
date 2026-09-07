@@ -15,4 +15,4 @@ con extern main(mem: %mem.M 0, argc: I32, argv: %mem.Ptr («⊤:Nat; %mem.Ptr (�
 
     return (val);
 
-// CHECK: Error: linear mem variable is not consumed in lambda
+// CHECK: linear object was never used

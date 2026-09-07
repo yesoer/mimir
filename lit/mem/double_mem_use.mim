@@ -19,4 +19,4 @@ con extern main(mem: %mem.M 0, argc: I32, argv: %mem.Ptr («⊤:Nat; %mem.Ptr (�
     let joined = (mem_fin2, mem_fin1)#(cond);
     return (joined, val);
 
-// CHECK: Error: availability for mem object and usage count mismatch
+// CHECK: attempted reuse of linear object

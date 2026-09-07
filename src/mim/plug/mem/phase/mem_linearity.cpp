@@ -28,9 +28,8 @@ const Def* MemLinearity::rewrite_imm_App(const App* old_app) {
     auto check_and_consume = [&](const Def* mem_val) {
         auto found = isa_find_use(mem_val);
         if (!found || found != mem_val) {
-            // TODO : check what proper error handling would be
-            std::cerr << "Error: availability for mem object and usage count mismatch" << std::endl;
-            exit(1);
+            auto err = found ? "attempted reuse of linear object" : "attempted use of unavailable object";
+            mem_val->blame("{}", err).bail();
         }
         record_use(mem_val, old_app);
     };
@@ -61,12 +60,8 @@ const Def* MemLinearity::rewrite_imm_App(const App* old_app) {
 }
 
 void MemLinearity::finalize() {
-    for (auto [def, use] : def_use_map_) {
-        if (def == use) {
-            std::cerr << "Error: linear mem variable is not consumed in lambda" << std::endl;
-            exit(1);
-        }
-    }
+    for (auto [def, use] : def_use_map_)
+        if (def == use) def->blame("linear object was never used").bail();
 }
 
 } // namespace mim::plug::mem::phase
