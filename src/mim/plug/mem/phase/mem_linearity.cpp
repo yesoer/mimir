@@ -60,7 +60,7 @@ const Def* MemLinearity::rewrite_imm_App(const App* old_app) {
 }
 
 void MemLinearity::finalize() {
-    for (auto [def, use] : def_use_map_)
+    for (auto [def, use] : def_use_)
         if (def == use) def->blame("linear object was never used").bail();
 }
 

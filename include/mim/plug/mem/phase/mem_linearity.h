@@ -1,7 +1,6 @@
 #pragma once
 
-#include <unordered_map>
-
+#include <mim/def.h>
 #include <mim/phase.h>
 
 namespace mim::plug::mem::phase {
@@ -16,13 +15,13 @@ public:
         : mim::Analysis(world, annex) {}
 
 private:
-    std::unordered_map<const Def*, const Def*> def_use_map_;
+    Def2Def def_use_;
 
-    void record_use(const Def* def, const Def* use) { def_use_map_[def] = use; }
+    void record_use(const Def* def, const Def* use) { def_use_[def] = use; }
 
     const Def* isa_find_use(const Def* def) {
-        auto found = def_use_map_.find(def);
-        return found == def_use_map_.end() ? nullptr : found->second;
+        auto found = def_use_.find(def);
+        return found == def_use_.end() ? nullptr : found->second;
     }
 
     Def* rewrite_mut(Def* mut) final;
