@@ -7,10 +7,7 @@
 namespace mim::plug::mem::phase {
 
 bool MemLinearity::is_linear_leaf(const Def* type) {
-    std::cout << "is_linear_leaf : " << type << std::endl;
-    const Type* type_sort = type->isa_type<Type>();
-    // TODO : is the check reasonable ? is Lit::isa necessary/sufficient ?
-    if (!type_sort || Lit::isa(type_sort->level()) != 0) return false;
+    assert(type->isa_type<Type>());
 
     // TODO : later refactor to property on def objects, setable through 'linear' keyword in mim
     return Axm::isa<mem::M>(type);
