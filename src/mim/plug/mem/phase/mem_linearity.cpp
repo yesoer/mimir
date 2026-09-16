@@ -1,62 +1,62 @@
 #include "mim/plug/mem/phase/mem_linearity.h"
 
+#include <mim/axm.h>
+
 #include "mim/plug/mem/mem.h"
 
 namespace mim::plug::mem::phase {
 
+bool MemLinearity::is_linear_leaf(const Def* type) {
+    std::cout << "is_linear_leaf : " << type << std::endl;
+    const Type* type_sort = type->isa_type<Type>();
+    // TODO : is the check reasonable ? is Lit::isa necessary/sufficient ?
+    if (!type_sort || Lit::isa(type_sort->level()) != 0) return false;
+
+    // TODO : later refactor to property on def objects, setable through 'linear' keyword in mim
+    return Axm::isa<mem::M>(type);
+}
+
+/// recurse through the def's components and register all linear ones as
+/// available in the def_use_ map
+void MemLinearity::register_production(const Def* def) {
+    for_each_linear_component(def, [&](const Def* lin_def) {
+        if (!isa_find_use(lin_def)) record_use(lin_def, lin_def);
+    });
+}
+
 Def* MemLinearity::rewrite_mut(Def* mut) {
     if (!lookup(mut)) {
-        if (auto lam = mut->isa_mut<Lam>()) {
-            // TODO : should we put this in rewrite_mut_Lam or another helper ?
-            for (auto param : lam->vars()) {
-                if (plug::mem::isa_mem(param)) {
-                    if (!isa_find_use(param)) record_use(param, param);
-                }
-            }
-        }
+        if (auto lam = mut->isa_mut<Lam>())
+            for (auto param : lam->vars())
+                register_production(param);
     }
     return Analysis::rewrite_mut(mut);
 }
 
-const Def* MemLinearity::rewrite_imm_App(const App* old_app) {
-    auto arg    = old_app->arg();
-    auto callee = old_app->callee();
+const Def* MemLinearity::rewrite_imm(const Def* def) {
+    auto res = Rewriter::rewrite_imm(def);
+    if (res->isa_type<Type>()) return res; // skip type level defs
 
-    rewrite(arg);
-    rewrite(callee);
-
-    auto check_and_consume = [&](const Def* mem_val) {
-        auto found = isa_find_use(mem_val);
-        if (!found || found != mem_val) {
-            auto err = found ? "attempted reuse of linear object" : "attempted use of unavailable object";
-            mem_val->blame("{}", err).bail();
-        }
-        record_use(mem_val, old_app);
-    };
-
-    if (auto arg_sig = arg->type()->isa<Sigma>()) {
-        size_t n = arg_sig->num_ops();
-        for (size_t i = 0; i < n; ++i) {
-            auto proj = arg->proj(n, i);
-            if (plug::mem::isa_mem(proj)) check_and_consume(arg->proj(n, i));
-        }
-    } else if (plug::mem::isa_mem(arg)) {
-        check_and_consume(arg);
+    // TODO : is it correct that only apps are considered consuming ?
+    // before I wanted e.g. tuple construction to be that as well but
+    // since we do not propagate linearity to the tuple anymore (because
+    // that would require a change in how tuples can be deconstructed) and
+    // have fine grained tracking instead, it seems only app is needed anymore
+    if (auto app = def->isa<App>()) {
+        // TODO : consider wrapping this in a register_consumption
+        for (auto op : app->ops())
+            for_each_linear_component(op, [&](const Def* lin_def) {
+                auto found = isa_find_use(lin_def);
+                if (!found || found != lin_def) {
+                    auto err = found ? "attempted reuse of linear object" : "attempted use of unavailable object";
+                    lin_def->blame("{}", err).bail();
+                }
+                record_use(lin_def, app);
+            });
     }
 
-    if (auto sig = old_app->type()->isa<Sigma>()) {
-        size_t n = sig->num_ops();
-        for (size_t i = 0; i < n; ++i) {
-            auto proj = old_app->proj(n, i);
-            if (plug::mem::isa_mem(proj)) {
-                if (!isa_find_use(proj)) record_use(proj, proj);
-            }
-        }
-    } else if (plug::mem::isa_mem(old_app)) {
-        record_use(old_app, old_app);
-    }
-
-    return old_app;
+    register_production(def);
+    return res;
 }
 
 void MemLinearity::finalize() {
