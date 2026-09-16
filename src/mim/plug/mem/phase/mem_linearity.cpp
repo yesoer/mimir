@@ -49,7 +49,7 @@ const Def* MemLinearity::rewrite_imm(const Def* def) {
                 auto found = isa_find_use(lin_def);
                 if (!found || found != lin_def) {
                     auto err = found ? "attempted reuse of linear object" : "attempted use of unavailable object";
-                    lin_def->blame("{}", err).bail();
+                    lin_def->blame("{} `{}`", err, lin_def).bail();
                 }
                 record_use(lin_def, app);
             });
@@ -61,7 +61,7 @@ const Def* MemLinearity::rewrite_imm(const Def* def) {
 
 void MemLinearity::finalize() {
     for (auto [def, use] : def_use_)
-        if (def == use) def->blame("linear object was never used").bail();
+        if (def == use) def->blame("linear object `{}` was never used", def).bail();
 }
 
 } // namespace mim::plug::mem::phase
