@@ -1,0 +1,35 @@
+// RUN: rm -f %{s:stem}.ll
+// RUN: %mim -p opt %s -p ll -o -
+// RUN: clang %{s:stem}.ll -o %t -Wno-override-module
+// RUN: %t;          test $? -eq 10
+// RUN: %t 1 2 3;    test $? -eq 4
+// RUN: %t 1 2 3 4 5; test $? -eq 6
+
+plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
+
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
+    );
+
+// show requirement for scoping because both allocs use
+// mem -> double use, which is solvable through scoped def-use maps
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [mem.M 0, I32]) =
+    con then_br() =
+        let (m_al, ptr) = mem.alloc (I32, 0) m;
+        let m_st        = mem.store (m_al, ptr, 10:I32);
+        let (m_lo, val) = mem.load (m_st, ptr);
+        let m_fin       = mem.free (m_lo, ptr);
+        return (m_fin, val);
+    con else_br() =
+        let (m_al, ptr) = mem.alloc (Nat, 0) m; // use Nat to prevent consing
+        let argc_Nat = core.bitcast Nat argc;
+        let m_st        = mem.store (m_al, ptr, argc_Nat);
+        let (m_lo, val) = mem.load (m_st, ptr);
+        let m_fin       = mem.free (m_lo, ptr);
+        return (m_fin, core.bitcast I32 val);
+    (core.select (core.icmp.e (argc, 1:I32), else_br, then_br)) ();

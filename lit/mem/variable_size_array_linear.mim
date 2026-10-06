@@ -1,0 +1,25 @@
+// RUN: rm -f %{s:stem}.ll
+// RUN: %mim -p opt %s -p ll -o -
+// RUN: clang %{s:stem}.ll -o %t -Wno-override-module
+// RUN: %t
+
+plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
+
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
+    );
+
+// forces a variable size array under an extract, which should mark the
+// entire array as used
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [mem.M 0, I32]) =
+    let n      = core.nat.add ((core.bitcast Nat argc), 1);
+    let idx_a  = core.bitcast (Idx n) argc;
+    let idx_b  = core.bitcast (Idx n) (core.wrap.sub i32 (argc, 1I32));  // some other runtime-dependent index
+    let arr    = ‹n; ⊤:(mem.M 0)›;
+    let arr    = arr#idx_a ← m;
+    return (arr#idx_b, argc);
