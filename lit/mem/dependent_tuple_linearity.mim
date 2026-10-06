@@ -1,0 +1,28 @@
+// RUN: not %mim -p opt %s -p ll -o - 2>&1 | %FileCheck %s
+
+plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
+
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
+    );
+
+let Box = [is_mem: Bool, val: (I32, mem.M 0)#is_mem];
+
+// TODO : see if this can be refactored to be actually passing
+// though passing the mem_linearity phase is already evident
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [Nat ∪ (mem.M 0), Nat ∪ I32]) =
+    let one = core.bitcast Nat (core.icmp.ul (argc, 3I32));
+    let zero = core.bitcast Nat (core.bit1.neg one);
+
+    let expect_i : Box = (zero, argc);
+    let expect_m : Box = (one, m);
+
+    let one_idx = (core.bitcast I1 one);
+    return (expect_m#one_idx, expect_i#one_idx);
+
+// CHECK: cannot convert this type to LLVM

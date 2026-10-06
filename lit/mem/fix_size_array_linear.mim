@@ -1,0 +1,21 @@
+// RUN: not %mim -p opt %s -p ll -o - 2>&1 | %FileCheck %s
+
+plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
+
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
+    );
+
+// TODO : when other types can be linear this should be refactored so it can actually compile
+// though passing the mem_linearity phase is already evident
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [Nat ∪ (mem.M 0), I32]) =
+    let idx = core.icmp.ul (argc, 3I32);
+    let bundle = ((0, m), (1, m));
+    return ((bundle#idx)#idx, argc);
+
+// CHECK: cannot convert this type to LLVM
