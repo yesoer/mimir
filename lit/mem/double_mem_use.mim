@@ -1,22 +1,25 @@
 // RUN: not %mim -p opt %s -p ll -o - 2>&1 | %FileCheck %s
 
 plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
 
-lam extern _compile(): %compile.Phase =
-    %compile.phases ff (
-        %compile.named "%mem.mem_linearity",
-        _default_compile(),
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
     );
 
-con extern main(mem: %mem.M 0, argc: I32, argv: %mem.Ptr («⊤:Nat; %mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [%mem.M 0, I32]) =
-    let (mem_al, ptr) = %mem.alloc (I32, 0) mem;
-    let mem_st         = %mem.store (mem_al, ptr, argc);
-    let (mem_lo, val)  = %mem.load (mem_al, ptr);
-    let mem_fin1       = %mem.free(mem_st, ptr);
-    let mem_fin2       = %mem.free(mem_lo, ptr);
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [mem.M 0, I32]) =
+    let (m_al, ptr) = mem.alloc (I32, 0) m;
+    let m_st         = mem.store (m_al, ptr, argc);
+    let (m_lo, val)  = mem.load (m_al, ptr);
+    let m_fin1       = mem.free(m_st, ptr);
+    let m_fin2       = mem.free(m_lo, ptr);
 
-    let cond = %core.icmp.ul (argc, 3I32);
-    let joined = (mem_fin2, mem_fin1)#(cond);
+    let cond = core.icmp.ul (argc, 3I32);
+    let joined = (m_fin2, m_fin1)#(cond);
     return (joined, val);
 
-// CHECK: attempted reuse of linear object `_5105#ff`
+// CHECK: attempted reuse of linear object `_5009#ff`

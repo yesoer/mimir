@@ -1,18 +1,21 @@
 // RUN: not %mim -p opt %s -p ll -o - 2>&1 | %FileCheck %s
 
 plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
 
-lam extern _compile(): %compile.Phase =
-    %compile.phases ff (
-        %compile.named "%mem.mem_linearity",
-        _default_compile(),
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
     );
 
-con extern main(mem: %mem.M 0, argc: I32, argv: %mem.Ptr («⊤:Nat; %mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [I32]) =
-    let (mem_al, ptr) = %mem.alloc (I32, 0) mem;
-    let mem_st        = %mem.store (mem_al, ptr, argc);
-    let (mem_lo, val) = %mem.load (mem_st, ptr);
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [I32]) =
+    let (m_al, ptr) = mem.alloc (I32, 0) m;
+    let m_st        = mem.store (m_al, ptr, argc);
+    let (m_lo, val) = mem.load (m_st, ptr);
 
     return (val);
 
-// CHECK: linear object `_4933#ff` was never used
+// CHECK: linear object `_4901#ff` was never used

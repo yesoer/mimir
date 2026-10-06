@@ -6,21 +6,24 @@
 // RUN: %t 1 2 3 4 5; test $? -eq 6
 
 plugin core;
+plugin compile;
+plugin mem;
+plugin opt;
 
-lam extern _compile(): %compile.Phase =
-    %compile.phases ff (
-        %compile.named "%mem.mem_linearity",
-        _default_compile(),
+extern lam _compile(): compile.Phase =
+    compile.phases ff (
+        mem.mem_linearity,
+        opt._default_compile(),
     );
 
-con use(bundle: [[%mem.M 0, %mem.Ptr(I32, 0)], I32], return: Cn [%mem.M 0, I32]) =
-    let ((mem_al, ptr), val) = bundle;
-    let mem_st        = %mem.store (mem_al, ptr, val);
-    let (mem_lo, res) = %mem.load (mem_st, ptr);
-    let mem_fin       = %mem.free (mem_lo, ptr);
-    return (mem_fin, res);
+con return_from_nested(bundle: [[mem.M 0, mem.Ptr(I32, 0)], I32], return: Cn [mem.M 0, I32]) =
+    let ((m_al, ptr), val) = bundle;
+    let m_st        = mem.store (m_al, ptr, val);
+    let (m_lo, res) = mem.load (m_st, ptr);
+    let m_fin       = mem.free (m_lo, ptr);
+    return (m_fin, res);
 
-con extern main(mem: %mem.M 0, argc: I32, argv: %mem.Ptr («⊤:Nat; %mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [%mem.M 0, I32]) =
-    let al = %mem.alloc (I32, 0) mem;
+extern con main(m: mem.M 0, argc: I32, argv: mem.Ptr («⊤:Nat; mem.Ptr («⊤:Nat; I8», 0)», 0), return: Cn [mem.M 0, I32]) =
+    let al = mem.alloc (I32, 0) m;
     let bundle = (al, argc);
-    use (bundle, return);
+    return_from_nested (bundle, return);
