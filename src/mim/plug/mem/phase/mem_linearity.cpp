@@ -8,8 +8,6 @@ namespace mim::plug::mem::phase {
 
 bool MemLinearity::is_linear_leaf(const Def* type) {
     assert(type->isa_type<Type>());
-
-    // TODO : later refactor to property on def objects, setable through 'linear' keyword in mim
     return Axm::isa<mem::M>(type);
 }
 
@@ -17,6 +15,7 @@ bool MemLinearity::is_linear_leaf(const Def* type) {
 /// available in the def_use_ map
 void MemLinearity::register_production(const Def* def) {
     for_each_linear_component(def, [&](const Def* lin_def) {
+        // nodes may be visited multiple times but can only produce once
         if (!isa_find_use(lin_def)) record_use(lin_def, lin_def);
     });
 }
@@ -30,30 +29,34 @@ Def* MemLinearity::rewrite_mut(Def* mut) {
     return Analysis::rewrite_mut(mut);
 }
 
-const Def* MemLinearity::rewrite_imm(const Def* def) {
-    auto res = Rewriter::rewrite_imm(def);
-    if (res->isa_type<Type>()) return res; // skip type level defs
+void MemLinearity::register_consumption(const Def* possibly_consumed, const Def* consumer) {
+    for_each_linear_component(possibly_consumed, [&](const Def* lin_def) {
+        auto found = isa_find_use(lin_def);
+        if (!found || found != lin_def) {
+            if (found)
+                found->blame("attempted reuse of linear object `{}`", lin_def).bail();
 
-    // TODO : is it correct that only apps are considered consuming ?
-    // before I wanted e.g. tuple construction to be that as well but
-    // since we do not propagate linearity to the tuple anymore (because
-    // that would require a change in how tuples can be deconstructed) and
-    // have fine grained tracking instead, it seems only app is needed anymore
-    if (auto app = def->isa<App>()) {
-        // TODO : consider wrapping this in a register_consumption
-        for (auto op : app->ops())
-            for_each_linear_component(op, [&](const Def* lin_def) {
-                auto found = isa_find_use(lin_def);
-                if (!found || found != lin_def) {
-                    auto err = found ? "attempted reuse of linear object" : "attempted use of unavailable object";
-                    lin_def->blame("{} `{}`", err, lin_def).bail();
-                }
-                record_use(lin_def, app);
-            });
-    }
+            else
+                lin_def->blame("attempted use of unavailable object `{}`", lin_def).bail();
+        }
+        record_use(lin_def, consumer);
+    });
+}
+
+const Def* MemLinearity::rewrite_imm(const Def* def) {
+    Rewriter::rewrite_imm(def); // rewrite operands first
+
+    if (def->isa_type<Type>()) return def;                     // type level can't produce/consume
+    if (def->isa<Univ>() || def->isa_type<Univ>()) return def; // universal level can't produce/consume
+
+    // Note : only applications are considered consuming
+    if (auto app = def->isa<App>())
+        for (auto arg : app->args())
+            register_consumption(arg, app);
 
     register_production(def);
-    return res;
+
+    return def;
 }
 
 void MemLinearity::finalize() {
